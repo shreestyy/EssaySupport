@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/navbar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,7 +12,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Essay Support | MyThorneAI",
   description:
-    "AI-powered essay feedback, rubric alignment, and academic writing enhancement.",
+    "AI-powered essay diagnostic feedback and rubric alignment inside the MyThorneAI dashboard.",
 };
 
 export default function RootLayout({
@@ -23,9 +22,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="min-h-screen font-sans bg-white text-typography-body antialiased flex flex-col">
-        <Navbar />
-        <main className="flex-1">{children}</main>
+      {/* 
+        Embedded into MyThorneAI dashboard content area.
+        The parent dashboard provides the left rail sidebar and page wrapper.
+      */}
+      <body className="min-h-screen font-sans bg-surface-panel/80 text-typography-body antialiased">
+        <main className="w-full">{children}</main>
       </body>
     </html>
   );

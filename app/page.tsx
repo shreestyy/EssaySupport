@@ -6,17 +6,15 @@ import {
   UploadCloud,
   FileText,
   Sparkles,
-  CheckCircle2,
   X,
-  FileCode,
-  ArrowRight,
   ShieldCheck,
-  BookOpen,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { MOCK_ISSUES, MOCK_ESSAY_TEXT } from "@/lib/mock-data";
+import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { IconBadge } from "@/components/ui/icon-badge";
+import { StepTracker } from "@/components/step-tracker";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -47,14 +45,10 @@ export default function UploadPage() {
         const text = await file.text();
         setEssayText(text);
       } else {
-        // For docx/pdf or other files without a heavy binary parser on client:
-        // Attempt text extraction or load realistic sample text with document context
         const raw = await file.text();
-        // If it looks like plain text or markdown
         if (raw && !raw.includes("\u0000")) {
           setEssayText(raw);
         } else {
-          // Binary docx/pdf fallback for demo: populate with academic draft
           setEssayText(MOCK_ESSAY_TEXT);
         }
       }
@@ -82,14 +76,12 @@ export default function UploadPage() {
     e.stopPropagation();
     setIsDragging(false);
 
-    // Check for files first
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       await processUploadedFile(file);
       return;
     }
 
-    // Check for raw text dropped
     const droppedText = e.dataTransfer.getData("text");
     if (droppedText) {
       setEssayText(droppedText);
@@ -114,43 +106,45 @@ export default function UploadPage() {
     setFileName("Sample_Undergraduate_Essay.txt");
   };
 
-  // Mock analysis trigger
+  // Mock analysis trigger - routes to editor via centralized route map
   const handleAnalyzeEssay = async () => {
     if (!essayText.trim()) return;
 
     setIsAnalyzing(true);
 
-    // Simulate AI diagnostic analysis latency
     setTimeout(() => {
-      // Populate issues in Zustand store
       setIssues(MOCK_ISSUES);
       setActiveIssueIndex(0);
       setIsAnalyzing(false);
-      router.push("/editor");
+      router.push(ROUTES.editor);
     }, 1200);
   };
 
   const isTextEmpty = !essayText.trim();
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 page-fade-in">
-      <div className="max-w-[700px] w-full mx-auto space-y-8">
-        {/* Header section */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold shadow-soft">
+    <div className="w-full max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-6 space-y-6 page-fade-in">
+      {/* 1. Dashboard Pathway Step Tracker */}
+      <StepTracker currentStep={1} />
+
+      {/* 2. Main Upload Card */}
+      <div className="rounded-2xl border border-border bg-white p-6 sm:p-8 shadow-soft space-y-6">
+        {/* Header section with small uppercase eyebrow matching dashboard reference */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
-            MyThorneAI Diagnostic Suite
+            AI Diagnostic Feedback
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-typography-heading">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-typography-heading">
             Check your essay
           </h1>
-          <p className="text-sm sm:text-base text-typography-body max-w-lg mx-auto leading-relaxed">
-            Upload your draft or paste your text below for instant diagnostic
-            critique, thesis evaluation, and rubric-aligned insights.
+          <p className="text-sm text-typography-body max-w-md mx-auto leading-relaxed">
+            Upload your draft or paste text below for instant diagnostic critique,
+            thesis evaluation, and rubric-aligned insights.
           </p>
         </div>
 
-        {/* Upload & Drop Zone Card */}
+        {/* Upload & Drop Zone Box */}
         <div className="space-y-4">
           <div
             onDragOver={handleDragOver}
@@ -158,7 +152,7 @@ export default function UploadPage() {
             onDrop={handleDrop}
             className={`relative rounded-2xl border-2 border-dashed transition-all duration-200 bg-surface-panel p-6 sm:p-8 ${
               isDragging
-                ? "border-primary bg-primary-light/20 scale-[1.008]"
+                ? "border-primary bg-primary-light/20 scale-[1.005]"
                 : "border-border hover:border-border/80 focus-within:border-primary/60 focus-within:ring-4 focus-within:ring-primary/5"
             }`}
           >
@@ -171,14 +165,13 @@ export default function UploadPage() {
               className="hidden"
             />
 
-            {/* If no essay text is present, show the upload prompt with active overlay textarea */}
             {isTextEmpty ? (
-              <div className="flex flex-col items-center justify-center text-center py-8 space-y-4">
-                <IconBadge shape="square" size="lg" className="shadow-soft">
-                  <UploadCloud className="w-6 h-6" />
+              <div className="flex flex-col items-center justify-center text-center py-6 space-y-4">
+                <IconBadge shape="circle" size="lg" className="shadow-soft">
+                  <UploadCloud className="w-6 h-6 text-primary" />
                 </IconBadge>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <p className="text-base font-semibold text-typography-heading">
                     Paste or upload your essay
                   </p>
@@ -194,7 +187,7 @@ export default function UploadPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 text-[11px] text-typography-muted">
+                <div className="flex items-center gap-2 pt-1 text-[11px] text-typography-muted">
                   <span className="px-2.5 py-1 rounded-full bg-white border border-border">
                     .TXT
                   </span>
@@ -209,17 +202,15 @@ export default function UploadPage() {
                   </span>
                 </div>
 
-                {/* Direct typing / paste textarea overlay inside the drop zone */}
-                <div className="w-full pt-4">
-                  <div className="relative">
-                    <textarea
-                      value={essayText}
-                      onChange={(e) => setEssayText(e.target.value)}
-                      placeholder="Or click here to start typing or paste your essay text directly..."
-                      rows={4}
-                      className="w-full rounded-xl border border-border bg-white p-3.5 text-sm text-typography-heading placeholder:text-typography-muted/70 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-y"
-                    />
-                  </div>
+                {/* Direct typing / paste textarea overlay */}
+                <div className="w-full pt-3">
+                  <textarea
+                    value={essayText}
+                    onChange={(e) => setEssayText(e.target.value)}
+                    placeholder="Or click here to start typing or paste your essay text directly..."
+                    rows={4}
+                    className="w-full rounded-xl border border-border bg-white p-3.5 text-sm text-typography-heading placeholder:text-typography-muted/70 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-y"
+                  />
                 </div>
               </div>
             ) : (
@@ -259,7 +250,7 @@ export default function UploadPage() {
                 />
 
                 <div className="flex items-center justify-between text-xs text-typography-muted pt-1">
-                  <span>Draft saved locally in store</span>
+                  <span>Draft saved in state</span>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-typography-heading">
                       {wordCount}
@@ -293,14 +284,14 @@ export default function UploadPage() {
             disabled={isTextEmpty}
             isLoading={isAnalyzing}
             onClick={handleAnalyzeEssay}
-            className="w-full sm:w-auto sm:min-w-[240px] shadow-md hover:shadow-elevation py-3.5 text-base font-semibold"
+            className="w-full sm:w-auto sm:min-w-[240px] shadow-elevation py-3.5 text-base font-semibold"
           >
             {isAnalyzing ? "Analyzing your essay..." : "Check my Essay"}
           </Button>
 
           <p className="text-[11px] text-typography-muted flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Academic privacy guaranteed • Submissions are not used for public AI training
+            Academic privacy guaranteed • Not used for public AI training
           </p>
         </div>
       </div>

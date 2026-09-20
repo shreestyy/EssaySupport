@@ -1,23 +1,20 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Sparkles,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  AlertCircle,
-  TrendingUp,
-  FileText,
   RotateCcw,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { MOCK_ISSUES } from "@/lib/mock-data";
+import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { IconBadge } from "@/components/ui/icon-badge";
+import { Card } from "@/components/ui/card";
+import { StepTracker } from "@/components/step-tracker";
 
 // Helper function to dynamically adjust copy and tone based on resolved count
 function getDynamicResultsContent(resolvedCount: number, totalCount: number) {
@@ -67,7 +64,6 @@ function getDynamicResultsContent(resolvedCount: number, totalCount: number) {
     };
   }
 
-  // 0 resolved out of total
   return {
     heading: "Diagnostic Review Complete",
     subtitle:
@@ -87,10 +83,10 @@ export default function ResultsPage() {
     resetToMockData,
   } = useAppStore();
 
-  // Redirect to / if user lands on /results with no essay in store
-  React.useEffect(() => {
+  // Redirect to home if user lands on /results with no essay in store
+  useEffect(() => {
     if (!essayText.trim() && issues.length === 0) {
-      router.replace("/");
+      router.replace(ROUTES.home);
     }
   }, [essayText, issues, router]);
 
@@ -106,120 +102,121 @@ export default function ResultsPage() {
   );
 
   // Handle "Back to editor" navigation:
-  // Instead of resetting to 0, set activeIssueIndex to the first unresolved issue
+  // Sets activeIssueIndex to the first unresolved issue (fallback to 0)
   const handleBackToEditor = () => {
     const firstUnresolvedIndex = currentIssues.findIndex((i) => !i.resolved);
     const targetIndex = firstUnresolvedIndex !== -1 ? firstUnresolvedIndex : 0;
     setActiveIssueIndex(targetIndex);
-    router.push("/editor");
+    router.push(ROUTES.editor);
   };
 
   const handleSeeProgress = () => {
-    router.push("/progress");
+    router.push(ROUTES.progress);
   };
 
   if (!essayText.trim() && issues.length === 0) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="min-h-[400px] flex items-center justify-center p-4">
         <p className="text-xs text-typography-muted">Redirecting to upload...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 page-fade-in">
-      <div className="max-w-[650px] w-full mx-auto space-y-8">
-        {/* Main Centered Results Card */}
-        <Card
-          variant="default"
-          className="rounded-2xl border border-border p-6 sm:p-10 shadow-soft space-y-8"
-        >
-          {/* Header & Dynamic Heading */}
-          <div className="text-center space-y-3">
-            <div className="flex justify-center">
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${content.badgeColor}`}
-              >
-                <Sparkles className={`w-3.5 h-3.5 ${content.iconColor}`} />
-                {content.badge}
-              </span>
-            </div>
+    <div className="w-full max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-6 space-y-6 page-fade-in">
+      {/* 1. Dashboard Pathway Step Tracker */}
+      <StepTracker currentStep={3} />
 
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-typography-heading">
-              {content.heading}
-            </h1>
-
-            <p className="text-sm sm:text-base text-typography-body leading-relaxed max-w-md mx-auto">
-              {content.subtitle}
-            </p>
-          </div>
-
-          {/* Horizontal Progress Bar Section */}
-          <div className="bg-surface-panel rounded-2xl p-5 sm:p-6 border border-border space-y-3.5">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-typography-heading flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-primary" />
-                Issue Resolution
-              </span>
-              <span className="font-bold text-typography-heading">
-                {resolvedCount} of {totalCount} fixed
-                <span className="text-xs font-normal text-typography-muted ml-1.5">
-                  ({percentage}%)
-                </span>
-              </span>
-            </div>
-
-            {/* Track & Bar */}
-            <div className="w-full bg-white border border-border rounded-full h-3.5 p-0.5 overflow-hidden shadow-inner">
-              <div
-                className="bg-primary h-full rounded-full transition-all duration-700 ease-out shadow-soft"
-                style={{ width: `${Math.max(percentage, 4)}%` }}
-              />
-            </div>
-
-            {/* Quick breakdown footer */}
-            <div className="flex items-center justify-between text-xs text-typography-muted pt-1">
-              <span>{totalCount - resolvedCount} issues remaining</span>
-              <span>Target: 100% resolution</span>
-            </div>
-          </div>
-
-          {/* Action Buttons: Secondary "Back to editor" + Primary "See my Progress" */}
-          <div className="flex flex-col-reverse sm:flex-row items-center justify-center gap-3.5 pt-2">
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={handleBackToEditor}
-              className="w-full sm:w-auto sm:min-w-[180px] shadow-soft py-3 font-semibold"
+      {/* 2. Main Centered Results Card */}
+      <Card
+        variant="default"
+        className="rounded-2xl border border-border bg-white p-6 sm:p-8 shadow-soft space-y-6"
+      >
+        {/* Header & Dynamic Heading */}
+        <div className="text-center space-y-2">
+          <div className="flex justify-center">
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${content.badgeColor}`}
             >
-              <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Back to editor
-            </Button>
-
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={handleSeeProgress}
-              className="w-full sm:w-auto sm:min-w-[200px] shadow-elevation py-3 font-semibold"
-            >
-              See my Progress
-              <ArrowRight className="w-4 h-4 ml-1.5" />
-            </Button>
+              <Sparkles className={`w-3.5 h-3.5 ${content.iconColor}`} />
+              {content.badge}
+            </span>
           </div>
-        </Card>
 
-        {/* Subtle footer reset link */}
-        <div className="flex items-center justify-center gap-2 text-xs text-typography-muted">
-          <span>Need to restart demo data?</span>
-          <button
-            type="button"
-            onClick={resetToMockData}
-            className="text-primary hover:underline font-medium inline-flex items-center gap-1"
-          >
-            <RotateCcw className="w-3 h-3" />
-            Reset all issues
-          </button>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-typography-heading">
+            {content.heading}
+          </h1>
+
+          <p className="text-sm text-typography-body leading-relaxed max-w-md mx-auto">
+            {content.subtitle}
+          </p>
         </div>
+
+        {/* Horizontal Progress Bar Section (styled like Pathway Progress bar) */}
+        <div className="bg-surface-panel rounded-2xl p-5 sm:p-6 border border-border space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold text-typography-heading flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              Issue Resolution
+            </span>
+            <span className="font-bold text-typography-heading">
+              {resolvedCount} of {totalCount} fixed
+              <span className="text-xs font-normal text-typography-muted ml-1.5">
+                ({percentage}%)
+              </span>
+            </span>
+          </div>
+
+          {/* Thin rounded bar with solid fill color like "Pathway Progress" 75% bar */}
+          <div className="w-full bg-white border border-border rounded-full h-2.5 sm:h-3 p-0.5 overflow-hidden">
+            <div
+              className="bg-primary h-full rounded-full transition-all duration-700 ease-out shadow-soft"
+              style={{ width: `${Math.max(percentage, 3)}%` }}
+            />
+          </div>
+
+          {/* Quick breakdown footer */}
+          <div className="flex items-center justify-between text-xs text-typography-muted pt-0.5">
+            <span>{totalCount - resolvedCount} issues remaining</span>
+            <span>Target: 100% resolution</span>
+          </div>
+        </div>
+
+        {/* Action Buttons: Secondary "Back to editor" + Primary "See my Progress" */}
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-center gap-3.5 pt-2">
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleBackToEditor}
+            className="w-full sm:w-auto sm:min-w-[180px] shadow-soft py-2.5 font-semibold"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            Back to editor
+          </Button>
+
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleSeeProgress}
+            className="w-full sm:w-auto sm:min-w-[200px] shadow-elevation py-2.5 font-semibold"
+          >
+            See my Progress
+            <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        </div>
+      </Card>
+
+      {/* Subtle footer reset link */}
+      <div className="flex items-center justify-center gap-2 text-xs text-typography-muted">
+        <span>Need to restart demo data?</span>
+        <button
+          type="button"
+          onClick={resetToMockData}
+          className="text-primary hover:underline font-medium inline-flex items-center gap-1"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset all issues
+        </button>
       </div>
     </div>
   );

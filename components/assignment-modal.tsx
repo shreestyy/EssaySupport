@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, GraduationCap, Sparkles, Wand2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { IconBadge } from "@/components/ui/icon-badge";
 
@@ -74,7 +75,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     setTimeout(() => {
       setIsChecking(false);
       onClose();
-      router.push("/results");
+      router.push(ROUTES.results);
     }, 900);
   };
 
