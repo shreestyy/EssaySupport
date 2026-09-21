@@ -1,43 +1,54 @@
 "use client";
 
-import React, { useState, useRef, ChangeEvent, DragEvent } from "react";
+import React, { useState, useRef, ChangeEvent, DragEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  UploadCloud,
-  FileText,
-  Sparkles,
-  X,
-  ShieldCheck,
-} from "lucide-react";
+import { UploadCloud, FileText, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { MOCK_ISSUES, MOCK_ESSAY_TEXT } from "@/lib/mock-data";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
-import { IconBadge } from "@/components/ui/icon-badge";
 import { StepTracker } from "@/components/step-tracker";
 
 export default function UploadPage() {
   const router = useRouter();
-  const { essayText, setEssayText, setIssues, setActiveIssueIndex } =
-    useAppStore();
+  const {
+    essayText,
+    setEssayText,
+    setIssues,
+    setActiveIssueIndex,
+    assignment,
+    setAssignment,
+  } = useAppStore();
 
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Assignment prompt optional section state
+  const [showPromptSection, setShowPromptSection] = useState(false);
+  const [instructions, setInstructions] = useState("");
+  const [essayType, setEssayType] = useState("Argumentative Essay");
+  const [educationLevel, setEducationLevel] = useState("Undergrad Y2");
+
+  useEffect(() => {
+    if (assignment) {
+      setInstructions(assignment.instructions || "");
+      if (assignment.essayType) setEssayType(assignment.essayType);
+      if (assignment.educationLevel) setEducationLevel(assignment.educationLevel);
+    }
+  }, [assignment]);
+
   const wordCount = essayText.trim()
     ? essayText.trim().split(/\s+/).filter(Boolean).length
     : 0;
 
-  // Handle file selection from hidden file input
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     await processUploadedFile(file);
   };
 
-  // Handle file or text processing
   const processUploadedFile = async (file: File) => {
     setFileName(file.name);
     try {
@@ -58,7 +69,6 @@ export default function UploadPage() {
     }
   };
 
-  // Drag and drop handlers
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -103,12 +113,30 @@ export default function UploadPage() {
 
   const handleLoadSample = () => {
     setEssayText(MOCK_ESSAY_TEXT);
-    setFileName("Sample_Undergraduate_Essay.txt");
+    setFileName("Sample_Undergrad_Essay.txt");
   };
 
-  // Mock analysis trigger - routes to editor via centralized route map
+  const handleSavePrompt = () => {
+    if (instructions.trim()) {
+      setAssignment({
+        instructions: instructions.trim(),
+        essayType,
+        educationLevel,
+      });
+    }
+  };
+
   const handleAnalyzeEssay = async () => {
     if (!essayText.trim()) return;
+
+    // Save prompt if user typed into it
+    if (instructions.trim()) {
+      setAssignment({
+        instructions: instructions.trim(),
+        essayType,
+        educationLevel,
+      });
+    }
 
     setIsAnalyzing(true);
 
@@ -117,30 +145,25 @@ export default function UploadPage() {
       setActiveIssueIndex(0);
       setIsAnalyzing(false);
       router.push(ROUTES.editor);
-    }, 1200);
+    }, 1100);
   };
 
   const isTextEmpty = !essayText.trim();
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-6 space-y-6 page-fade-in">
+    <div className="w-full max-w-4xl mx-auto space-y-6 page-fade-in">
       {/* 1. Dashboard Pathway Step Tracker */}
       <StepTracker currentStep={1} />
 
       {/* 2. Main Upload Card */}
       <div className="rounded-2xl border border-border bg-white p-6 sm:p-8 shadow-soft space-y-6">
-        {/* Header section with small uppercase eyebrow matching dashboard reference */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
-            AI Diagnostic Feedback
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-typography-heading">
+        {/* Header */}
+        <div className="space-y-1">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-typography-heading">
             Check your essay
-          </h1>
-          <p className="text-sm text-typography-body max-w-md mx-auto leading-relaxed">
-            Upload your draft or paste text below for instant diagnostic critique,
-            thesis evaluation, and rubric-aligned insights.
+          </h2>
+          <p className="text-sm text-typography-muted">
+            Paste or upload your draft below for feedback.
           </p>
         </div>
 
@@ -152,11 +175,10 @@ export default function UploadPage() {
             onDrop={handleDrop}
             className={`relative rounded-2xl border-2 border-dashed transition-all duration-200 bg-surface-panel p-6 sm:p-8 ${
               isDragging
-                ? "border-primary bg-primary-light/20 scale-[1.005]"
-                : "border-border hover:border-border/80 focus-within:border-primary/60 focus-within:ring-4 focus-within:ring-primary/5"
+                ? "border-primary bg-primary-light/20"
+                : "border-border hover:border-border/80 focus-within:border-primary/60"
             }`}
           >
-            {/* Hidden native file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -166,55 +188,38 @@ export default function UploadPage() {
             />
 
             {isTextEmpty ? (
-              <div className="flex flex-col items-center justify-center text-center py-6 space-y-4">
-                <IconBadge shape="circle" size="lg" className="shadow-soft">
-                  <UploadCloud className="w-6 h-6 text-primary" />
-                </IconBadge>
+              <div className="flex flex-col items-center justify-center text-center py-4 space-y-3">
+                <div className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center text-primary shadow-soft">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
 
                 <div className="space-y-1">
-                  <p className="text-base font-semibold text-typography-heading">
-                    Paste or upload your essay
-                  </p>
-                  <p className="text-xs sm:text-sm text-typography-body">
+                  <p className="text-sm font-semibold text-typography-heading">
                     Drag and drop your file here, or{" "}
                     <button
                       type="button"
                       onClick={handleTriggerUpload}
-                      className="text-primary font-semibold hover:underline focus:outline-none focus:ring-1 focus:ring-primary rounded"
+                      className="text-primary hover:underline font-semibold"
                     >
-                      Upload a file
+                      browse
                     </button>
+                  </p>
+                  <p className="text-xs text-typography-muted">
+                    Supports .txt, .docx, .pdf, or paste directly below
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 pt-1 text-[11px] text-typography-muted">
-                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                    .TXT
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                    .DOCX
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                    .PDF
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                    Direct Paste
-                  </span>
-                </div>
-
-                {/* Direct typing / paste textarea overlay */}
-                <div className="w-full pt-3">
+                <div className="w-full pt-2">
                   <textarea
                     value={essayText}
                     onChange={(e) => setEssayText(e.target.value)}
-                    placeholder="Or click here to start typing or paste your essay text directly..."
-                    rows={4}
+                    placeholder="Or paste essay text directly here..."
+                    rows={5}
                     className="w-full rounded-xl border border-border bg-white p-3.5 text-sm text-typography-heading placeholder:text-typography-muted/70 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-y"
                   />
                 </div>
               </div>
             ) : (
-              /* When text is present, display active editable textarea with toolbar */
               <div className="space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-border/80 text-xs text-typography-muted">
                   <div className="flex items-center gap-2 font-medium text-typography-heading">
@@ -227,7 +232,7 @@ export default function UploadPage() {
                       onClick={handleTriggerUpload}
                       className="text-primary hover:underline font-medium"
                     >
-                      Replace file
+                      Replace
                     </button>
                     <span>•</span>
                     <button
@@ -250,49 +255,164 @@ export default function UploadPage() {
                 />
 
                 <div className="flex items-center justify-between text-xs text-typography-muted pt-1">
-                  <span>Draft saved in state</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-typography-heading">
-                      {wordCount}
-                    </span>{" "}
-                    words • {essayText.length} characters
-                  </div>
+                  <span>{wordCount} words · {essayText.length} characters</span>
+                  <button
+                    type="button"
+                    onClick={handleClearText}
+                    className="hover:underline text-typography-muted"
+                  >
+                    Clear text
+                  </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Sample essay helper link */}
+          {/* Sample essay helper */}
           <div className="flex items-center justify-between px-1 text-xs text-typography-muted">
-            <span>Need an example to try?</span>
+            <span>Need an example?</span>
             <button
               type="button"
               onClick={handleLoadSample}
-              className="text-primary font-medium hover:underline flex items-center gap-1"
+              className="text-primary font-medium hover:underline"
             >
-              <Sparkles className="w-3.5 h-3.5" />
               Load sample argumentative essay
             </button>
           </div>
         </div>
 
-        {/* Primary Action Button */}
-        <div className="flex flex-col items-center gap-3 pt-2">
+        {/* 3. Surface Assignment Prompt Option Earlier (Low-friction, optional) */}
+        <div className="rounded-xl border border-border bg-surface-panel/60 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-typography-heading">
+                Assignment prompt
+              </span>
+              <span className="text-[11px] text-typography-muted">
+                (optional)
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPromptSection(!showPromptSection)}
+              className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+            >
+              {showPromptSection ? (
+                <>
+                  <span>Hide</span>
+                  <ChevronUp className="w-3 h-3" />
+                </>
+              ) : instructions.trim() ? (
+                <>
+                  <span>Edit prompt</span>
+                  <ChevronDown className="w-3 h-3" />
+                </>
+              ) : (
+                <>
+                  <span>+ Add assignment prompt</span>
+                  <ChevronDown className="w-3 h-3" />
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Compact 1-line display when collapsed and prompt is populated */}
+          {!showPromptSection && instructions.trim() && (
+            <p className="text-xs text-typography-body truncate">
+              <span className="font-semibold text-typography-heading">
+                {essayType} · {educationLevel}:
+              </span>{" "}
+              &ldquo;{instructions}&rdquo;
+            </p>
+          )}
+
+          {/* Expanded Prompt Inputs */}
+          {showPromptSection && (
+            <div className="space-y-3 pt-1 border-t border-border/70">
+              <div>
+                <label className="block text-[11px] font-semibold text-typography-muted mb-1">
+                  Assignment instructions / prompt
+                </label>
+                <textarea
+                  rows={3}
+                  value={instructions}
+                  onChange={(e) => {
+                    setInstructions(e.target.value);
+                    handleSavePrompt();
+                  }}
+                  onBlur={handleSavePrompt}
+                  placeholder="Paste teacher instructions, prompt, or rubric guidelines..."
+                  className="w-full rounded-lg border border-border bg-white p-3 text-xs sm:text-sm text-typography-heading placeholder:text-typography-muted/70 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-typography-muted mb-1">
+                    Essay Type
+                  </label>
+                  <select
+                    value={essayType}
+                    onChange={(e) => {
+                      setEssayType(e.target.value);
+                      setAssignment({
+                        instructions: instructions.trim(),
+                        essayType: e.target.value,
+                        educationLevel,
+                      });
+                    }}
+                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-typography-heading focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
+                  >
+                    <option value="Argumentative Essay">Argumentative Essay</option>
+                    <option value="Narrative Essay">Narrative Essay</option>
+                    <option value="Expository Essay">Expository Essay</option>
+                    <option value="Persuasive Essay">Persuasive Essay</option>
+                    <option value="Descriptive Essay">Descriptive Essay</option>
+                    <option value="Compare & Contrast">Compare &amp; Contrast</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-typography-muted mb-1">
+                    Education Level
+                  </label>
+                  <select
+                    value={educationLevel}
+                    onChange={(e) => {
+                      setEducationLevel(e.target.value);
+                      setAssignment({
+                        instructions: instructions.trim(),
+                        essayType,
+                        educationLevel: e.target.value,
+                      });
+                    }}
+                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-typography-heading focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
+                  >
+                    <option value="Middle School">Middle School</option>
+                    <option value="High School">High School</option>
+                    <option value="Undergrad Y2">Undergrad Y2</option>
+                    <option value="Undergraduate">Undergraduate</option>
+                    <option value="Graduate">Graduate</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Button: Clean, no self-narrating yapping */}
+        <div className="pt-2">
           <Button
             variant="primary"
             size="lg"
             disabled={isTextEmpty}
             isLoading={isAnalyzing}
             onClick={handleAnalyzeEssay}
-            className="w-full sm:w-auto sm:min-w-[240px] shadow-elevation py-3.5 text-base font-semibold"
+            className="w-full sm:w-auto sm:min-w-[200px] font-semibold"
           >
-            {isAnalyzing ? "Analyzing your essay..." : "Check my Essay"}
+            {isAnalyzing ? "Checking..." : "Check essay"}
           </Button>
-
-          <p className="text-[11px] text-typography-muted flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Academic privacy guaranteed • Not used for public AI training
-          </p>
         </div>
       </div>
     </div>

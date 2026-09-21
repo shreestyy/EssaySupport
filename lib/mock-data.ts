@@ -22,9 +22,9 @@ export interface DraftHistoryItem {
 
 export const MOCK_ASSIGNMENT: Assignment = {
   instructions:
-    "Write a persuasive 800-1,000 word argumentative essay evaluating whether generative artificial intelligence should be integrated or restricted within undergraduate curricula. Support your thesis with contemporary ethical considerations and learning theories.",
+    "Evaluate whether generative AI should be integrated or restricted in undergraduate curricula, addressing ethics and learning outcomes.",
   essayType: "Argumentative Essay",
-  educationLevel: "Undergraduate (Year 2)",
+  educationLevel: "Undergrad Y2",
 };
 
 export const MOCK_ESSAY_TEXT = `The proliferation of generative artificial intelligence in academia has provoked a polarized discourse between outright prohibition and uncritical adoption. Rather than viewing machine learning tools as existential threats to academic integrity, universities must adopt proactive integration frameworks that cultivate algorithmic literacy while safeguarding authentic cognitive inquiry.
@@ -38,36 +38,36 @@ export const MOCK_ISSUES: EssayIssue[] = [
     id: "issue-1",
     category: "Thesis Precision",
     span: { start: 147, end: 326 },
-    what: "Compound thesis statement could be sharpened for rhetorical punch.",
-    why: "While your argument is clear, combining algorithmic literacy and authentic cognitive inquiry without defining their operational link weakens the core claim's immediacy.",
-    how: "Consider specifying the concrete mechanism: e.g., 'universities must implement structured pedagogical integration that equips students to interrogate machine outputs rather than surrender analytical judgment.'",
+    what: "Compound thesis lacks a concrete operational mechanism.",
+    why: "Combining algorithmic literacy and inquiry without defining their link weakens the core claim's focus.",
+    how: "Specify how students should interrogate machine outputs rather than surrender analytical judgment.",
     resolved: false,
   },
   {
     id: "issue-2",
-    category: "Word Choice & Redundancy",
+    category: "Word Choice",
     span: { start: 367, end: 410 },
-    what: "Redundant phrasing: 'reacted reactively'.",
-    why: "Using the adverb 'reactively' right after the verb 'reacted' creates awkward tautology and detracts from academic tone.",
-    how: "Replace with 'have responded defensively with blanket bans' or simply 'have instituted reactionary bans.'",
+    what: "Redundant phrasing in 'reacted reactively'.",
+    why: "Using 'reactively' immediately after 'reacted' creates awkward repetition.",
+    how: "Replace with 'responded defensively' or 'instituted reactionary bans'.",
     resolved: false,
   },
   {
     id: "issue-3",
     category: "Evidence & Citation",
     span: { start: 421, end: 554 },
-    what: "Unsubstantiated empirical claim regarding AI detection error rates.",
-    why: "Mentioning 'studies consistently demonstrate' without citing specific peer-reviewed research or institutional data weakens academic authority.",
-    how: "Cite specific empirical research (e.g., Liang et al., 2023 regarding detector bias against non-native writers) to substantiate your claim.",
+    what: "Empirical claim on error rates lacks citation.",
+    why: "Citing error rates without a source weakens argument credibility.",
+    how: "Cite research (e.g. Liang et al., 2023) to substantiate detector bias.",
     resolved: false,
   },
   {
     id: "issue-4",
-    category: "Argumentative Transition",
+    category: "Argument Transition",
     span: { start: 708, end: 855 },
-    what: "Historical analogy requires closer contextual anchoring.",
-    why: "Comparing AI to calculators is common, but requires brief qualification regarding how generative models fundamentally synthesize language rather than compute discrete numerical solutions.",
-    how: "Briefly distinguish quantitative computation from semantic synthesis before asserting the pedagogical parallel.",
+    what: "Historical analogy needs closer contextual framing.",
+    why: "Calculators perform arithmetic, whereas generative models synthesize language and semantics.",
+    how: "Briefly distinguish numerical calculation from semantic synthesis.",
     resolved: true,
   },
 ];

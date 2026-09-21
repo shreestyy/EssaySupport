@@ -2,29 +2,19 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  Sparkles,
   ChevronLeft,
   ChevronRight,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  RotateCcw,
+  ChevronDown,
   Edit3,
   Eye,
-  X,
-  Plus,
-  Info,
-  Wand2,
+  Check,
 } from "lucide-react";
 import { useAppStore, EssayIssue } from "@/lib/store";
-import { MOCK_ISSUES, MOCK_ESSAY_TEXT } from "@/lib/mock-data";
+import { MOCK_ISSUES } from "@/lib/mock-data";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { IconBadge } from "@/components/ui/icon-badge";
-import { CircularProgress } from "@/components/circular-progress";
 import { AssignmentModal } from "@/components/assignment-modal";
 import { StepTracker } from "@/components/step-tracker";
 
@@ -36,16 +26,17 @@ export default function EditorPage() {
     activeIssueIndex,
     assignment,
     setEssayText,
-    setIssues,
     setActiveIssueIndex,
     toggleIssueResolved,
-    resetToMockData,
   } = useAppStore();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showBanner, setShowBanner] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRechecking, setIsRechecking] = useState(false);
+  const [isWhyFixExpanded, setIsWhyFixExpanded] = useState(true);
+
+  // Popover state for inline span interaction
+  const [hoveredIssueId, setHoveredIssueId] = useState<string | null>(null);
 
   // Redirect to home if user lands on /editor with no essay text in store
   useEffect(() => {
@@ -54,7 +45,7 @@ export default function EditorPage() {
     }
   }, [essayText, router]);
 
-  // Current active issue safely clamped
+  // Current issues safely clamped
   const currentIssues = issues.length > 0 ? issues : MOCK_ISSUES;
   const safeIndex = Math.min(
     Math.max(0, activeIssueIndex),
@@ -62,7 +53,6 @@ export default function EditorPage() {
   );
   const activeIssue: EssayIssue = currentIssues[safeIndex] || currentIssues[0];
 
-  // Completion calculation for circular progress
   const resolvedCount = currentIssues.filter((i) => i.resolved).length;
   const completionPercentage =
     currentIssues.length > 0
@@ -73,7 +63,6 @@ export default function EditorPage() {
     ? essayText.trim().split(/\s+/).filter(Boolean).length
     : 0;
 
-  // Navigation between issues (clamped)
   const handlePrevIssue = () => {
     if (safeIndex > 0) {
       setActiveIssueIndex(safeIndex - 1);
@@ -86,112 +75,188 @@ export default function EditorPage() {
     }
   };
 
-  // Re-check action with subtle loading state
   const handleRecheck = () => {
     setIsRechecking(true);
     setTimeout(() => {
       setIsRechecking(false);
       router.push(ROUTES.results);
-    }, 1100);
+    }, 1000);
   };
 
-  // Compute text highlighting safely
+  // Build segmented highlighted text: all unresolved issues have Grammarly-style underlines
   const renderedHighlightedText = useMemo(() => {
     if (!essayText) return null;
-    if (!activeIssue || !activeIssue.span) {
+
+    // Filter issues with valid spans and sort by start
+    const sortedIssues = [...currentIssues]
+      .map((issue, originalIndex) => ({ issue, originalIndex }))
+      .filter(
+        ({ issue }) =>
+          issue.span &&
+          issue.span.start >= 0 &&
+          issue.span.end <= essayText.length &&
+          issue.span.start < issue.span.end
+      )
+      .sort((a, b) => a.issue.span.start - b.issue.span.start);
+
+    if (sortedIssues.length === 0) {
       return (
-        <div className="space-y-4 whitespace-pre-wrap leading-relaxed">
+        <div className="whitespace-pre-wrap leading-relaxed text-typography-heading text-sm sm:text-base">
           {essayText}
         </div>
       );
     }
 
-    const { start, end } = activeIssue.span;
-    const clampedStart = Math.max(0, Math.min(start, essayText.length));
-    const clampedEnd = Math.max(clampedStart, Math.min(end, essayText.length));
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
 
-    const before = essayText.slice(0, clampedStart);
-    const highlighted = essayText.slice(clampedStart, clampedEnd);
-    const after = essayText.slice(clampedEnd);
+    sortedIssues.forEach(({ issue, originalIndex }) => {
+      const { start, end } = issue.span;
+
+      // Add unflagged text before this span
+      if (start > lastIndex) {
+        elements.push(
+          <span key={`text-${lastIndex}-${start}`}>
+            {essayText.slice(lastIndex, start)}
+          </span>
+        );
+      }
+
+      const isCurrentActive = originalIndex === safeIndex;
+      const isHovered = hoveredIssueId === issue.id;
+      const isResolved = issue.resolved;
+
+      elements.push(
+        <span
+          key={`span-${issue.id}`}
+          className="relative inline"
+          onMouseEnter={() => setHoveredIssueId(issue.id)}
+          onMouseLeave={() => setHoveredIssueId(null)}
+        >
+          <span
+            onClick={() => setActiveIssueIndex(originalIndex)}
+            className={`cursor-pointer transition-all duration-150 ${
+              isResolved
+                ? "text-typography-body opacity-80"
+                : isCurrentActive
+                ? "underline decoration-amber-500 decoration-2 underline-offset-4 bg-amber-100/40 text-typography-heading font-medium px-0.5 rounded-sm"
+                : "underline decoration-amber-400 decoration-2 underline-offset-4 hover:bg-amber-50/60 text-typography-heading px-0.5 rounded-sm"
+            }`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Flagged issue: ${issue.category}. ${issue.what}`}
+          >
+            {essayText.slice(start, end)}
+          </span>
+
+          {/* Inline Popover on Hover or Click */}
+          {isHovered && (
+            <span
+              className="absolute left-0 bottom-full mb-2 z-30 w-72 p-3 bg-white border border-border rounded-xl shadow-soft-lg text-xs leading-normal pointer-events-auto block animate-in fade-in duration-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="flex items-center justify-between pb-1.5 border-b border-border/70 mb-1.5">
+                <span className="font-semibold text-typography-heading text-[11px] uppercase tracking-wider text-amber-700">
+                  {issue.category}
+                </span>
+                <span className="text-[10px] text-typography-muted">
+                  Issue {originalIndex + 1} of {currentIssues.length}
+                </span>
+              </span>
+
+              <span className="block text-typography-heading font-medium mb-2.5">
+                {issue.what}
+              </span>
+
+              <span className="flex items-center justify-between pt-1 border-t border-border/50 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => toggleIssueResolved(issue.id)}
+                  className="font-medium text-primary hover:underline"
+                >
+                  {issue.resolved ? "Mark unresolved" : "Mark resolved"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveIssueIndex(originalIndex);
+                    setIsWhyFixExpanded(true);
+                  }}
+                  className="text-typography-muted hover:text-typography-heading font-medium"
+                >
+                  View suggestion →
+                </button>
+              </span>
+            </span>
+          )}
+        </span>
+      );
+
+      lastIndex = end;
+    });
+
+    // Add remaining text after last span
+    if (lastIndex < essayText.length) {
+      elements.push(
+        <span key={`text-tail`}>{essayText.slice(lastIndex)}</span>
+      );
+    }
 
     return (
       <div className="text-typography-heading text-sm sm:text-base leading-7 font-normal whitespace-pre-wrap select-text">
-        <span>{before}</span>
-        <mark
-          className="bg-amber-100/90 text-amber-950 font-medium px-1 py-0.5 rounded border-b-2 border-accent transition-all duration-200 shadow-sm inline"
-          title={`Active Issue: ${activeIssue.what}`}
-        >
-          {highlighted}
-        </mark>
-        <span>{after}</span>
+        {elements}
       </div>
     );
-  }, [essayText, activeIssue]);
+  }, [essayText, currentIssues, safeIndex, hoveredIssueId, setActiveIssueIndex, toggleIssueResolved]);
 
   if (!essayText.trim()) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center p-4">
-        <p className="text-xs text-typography-muted">Redirecting to upload...</p>
+      <div className="min-h-[300px] flex items-center justify-center p-4">
+        <p className="text-xs text-typography-muted">Loading draft...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-6 sm:py-8 px-4 sm:px-6 space-y-6 page-fade-in">
+    <div className="w-full max-w-5xl mx-auto space-y-5 page-fade-in">
       {/* 1. Dashboard Pathway Step Tracker */}
       <StepTracker currentStep={2} />
 
-      {/* 2. Dismissible Assignment Prompt Banner */}
-      {showBanner && (
-        <div className="relative rounded-2xl border border-primary/20 bg-primary-light/40 p-4 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-all duration-200 shadow-soft">
-          <div className="flex items-center gap-3">
-            <IconBadge shape="circle" size="sm" className="bg-primary/10 text-primary">
-              <Info className="w-4 h-4" />
-            </IconBadge>
-            <p className="text-xs sm:text-sm font-medium text-typography-heading">
-              {assignment?.instructions ? (
-                <span>
-                  Active Rubric: <strong className="font-semibold">{assignment.essayType}</strong> ({assignment.educationLevel})
-                </span>
-              ) : (
-                "Add your assignment instructions for deeper feedback."
-              )}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover hover:underline transition-colors px-2.5 py-1 rounded-full bg-white border border-primary/20 shadow-soft"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {assignment?.instructions ? "Edit prompt" : "Add prompt +"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowBanner(false)}
-              className="p-1 text-typography-muted hover:text-typography-heading transition-colors rounded-full hover:bg-white/80"
-              title="Dismiss banner"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+      {/* 2. Compact Rubric / Assignment Context Bar (No AI slop or puffy banner) */}
+      <div className="flex items-center justify-between py-2 px-3.5 rounded-xl bg-surface-panel border border-border text-xs">
+        <div className="flex items-center gap-2 truncate text-typography-muted">
+          {assignment?.instructions ? (
+            <span className="truncate">
+              <strong className="font-semibold text-typography-heading">
+                {assignment.essayType || "Argumentative Essay"} ·{" "}
+                {assignment.educationLevel || "Undergrad Y2"}
+              </strong>
+              : &ldquo;{assignment.instructions}&rdquo;
+            </span>
+          ) : (
+            <span>No assignment prompt attached.</span>
+          )}
         </div>
-      )}
 
-      {/* 3. Core Workspace: Two-Column Layout (Responsive on Mobile) */}
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="text-xs font-semibold text-primary hover:underline ml-3 flex-shrink-0"
+        >
+          {assignment?.instructions ? "Edit prompt" : "+ Add prompt"}
+        </button>
+      </div>
+
+      {/* 3. Core Two-Column Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* ========================================================= */}
-        {/* LEFT COLUMN: Editable Text Area with Visual Highlight     */}
-        {/* ========================================================= */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-3">
+        {/* LEFT COLUMN: Essay Text Area with Legible Underline Highlighting */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-2">
           <Card variant="default" className="shadow-soft bg-white border-border">
-            {/* Header inside Editor Card */}
-            <CardHeader className="border-b border-border py-3.5 px-5 sm:px-6 flex flex-row items-center justify-between space-y-0">
+            {/* Header: Title, word count, view mode switcher, and plain text progress */}
+            <CardHeader className="border-b border-border py-3 px-5 sm:px-6 flex flex-row items-center justify-between space-y-0">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-semibold">
+                  <CardTitle className="text-sm sm:text-base font-semibold">
                     Essay Manuscript
                   </CardTitle>
                   <span className="text-xs text-typography-muted">
@@ -199,48 +264,48 @@ export default function EditorPage() {
                   </span>
                 </div>
 
-                {/* Mode switcher: Highlight vs Edit */}
-                <div className="hidden sm:flex items-center bg-surface-panel rounded-full p-0.5 border border-border">
+                {/* View switcher */}
+                <div className="hidden sm:flex items-center bg-surface-panel rounded-lg p-0.5 border border-border text-xs">
                   <button
                     type="button"
                     onClick={() => setIsEditMode(false)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-all ${
                       !isEditMode
-                        ? "bg-white text-primary shadow-soft"
-                        : "text-typography-body hover:text-typography-heading"
+                        ? "bg-white text-typography-heading font-medium shadow-soft"
+                        : "text-typography-muted hover:text-typography-heading"
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    Highlighted View
+                    Highlighted
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsEditMode(true)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-all ${
                       isEditMode
-                        ? "bg-white text-primary shadow-soft"
-                        : "text-typography-body hover:text-typography-heading"
+                        ? "bg-white text-typography-heading font-medium shadow-soft"
+                        : "text-typography-muted hover:text-typography-heading"
                     }`}
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    Direct Edit
+                    Edit
                   </button>
                 </div>
               </div>
 
-              {/* Top-Right Secondary Small Circular Progress Indicator */}
-              <div className="flex items-center gap-2">
-                <span className="hidden sm:inline text-xs font-medium text-typography-muted">
-                  Resolved
-                </span>
-                <CircularProgress percentage={completionPercentage} size={36} />
+              {/* Plain text progress count (No puffy badge/pill) */}
+              <div className="text-xs text-typography-muted font-medium">
+                <span className="text-typography-heading font-semibold">
+                  {resolvedCount} of {currentIssues.length}
+                </span>{" "}
+                resolved ({completionPercentage}%)
               </div>
             </CardHeader>
 
-            {/* Editor / Text Content Area */}
+            {/* Text View / Edit Area */}
             <CardContent className="p-5 sm:p-6">
               {isEditMode ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <textarea
                     value={essayText}
                     onChange={(e) => setEssayText(e.target.value)}
@@ -248,195 +313,156 @@ export default function EditorPage() {
                     className="w-full rounded-xl border border-border p-4 text-typography-heading font-sans text-sm sm:text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-y"
                     placeholder="Write or edit your essay draft here..."
                   />
-                  <div className="flex justify-between items-center text-xs text-typography-muted">
-                    <span>Editing mode active • Changes save to store instantly</span>
+                  <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => setIsEditMode(false)}
-                      className="text-primary hover:underline font-semibold"
+                      className="text-xs text-primary hover:underline font-semibold"
                     >
                       Return to Highlighted View
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="min-h-[380px] p-2 sm:p-3 bg-surface-panel/50 rounded-xl border border-border/60">
+                <div className="min-h-[380px] p-2 sm:p-3 bg-white rounded-xl">
                   {renderedHighlightedText}
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Quick helper note under editor */}
-          <div className="flex items-center justify-between px-2 text-xs text-typography-muted">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-200 border border-accent"></span>
-              Amber highlight marks flagged text for Issue #{safeIndex + 1}
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsEditMode(!isEditMode)}
-              className="text-primary hover:underline font-medium sm:hidden"
-            >
-              {isEditMode ? "Switch to Highlight View" : "Switch to Edit Mode"}
-            </button>
-          </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* RIGHT COLUMN: The "Suggestion Card" with Circular Badges  */}
-        {/* ========================================================= */}
+        {/* RIGHT COLUMN: Grammarly-style Suggestion Card */}
         <div className="lg:col-span-5 xl:col-span-4 space-y-4">
           <Card variant="default" className="shadow-soft border-border bg-white overflow-hidden">
-            {/* Card Header: Category & Counter */}
-            <div className="px-5 sm:px-6 py-4 border-b border-border bg-surface-panel flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                  {activeIssue?.category || "Diagnostic Finding"}
+            {/* Header: Title, counter, and plain button for Mark Resolved */}
+            <div className="px-5 py-3.5 border-b border-border bg-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-typography-heading">
+                  {activeIssue?.category}
                 </span>
-                <p className="text-xs text-typography-muted">
-                  Issue {safeIndex + 1} of {currentIssues.length}
-                </p>
+                <span className="text-xs text-typography-muted">
+                  · {safeIndex + 1} of {currentIssues.length}
+                </span>
               </div>
 
+              {/* Plain button without pill/badge treatment */}
               <button
                 type="button"
                 onClick={() => toggleIssueResolved(activeIssue.id)}
-                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors border ${
+                className={`text-xs font-medium px-2.5 py-1 rounded border transition-colors flex items-center gap-1 ${
                   activeIssue.resolved
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
-                    : "bg-white text-typography-body border-border hover:text-typography-heading hover:bg-surface-panel"
+                    ? "border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                    : "border-border text-typography-body hover:bg-surface-panel hover:text-typography-heading"
                 }`}
               >
-                <CheckCircle2
-                  className={`w-3.5 h-3.5 ${
-                    activeIssue.resolved ? "text-emerald-600" : "text-typography-muted"
-                  }`}
-                />
+                {activeIssue.resolved && <Check className="w-3 h-3 text-emerald-600" />}
                 {activeIssue.resolved ? "Resolved" : "Mark Resolved"}
               </button>
             </div>
 
-            {/* Connected Three-Section Flow with Small Circular Icon Badges */}
-            <div className="p-5 sm:p-6 space-y-4 relative">
-              {/* Vertical flowline connector */}
-              <div
-                className="absolute left-[37px] sm:left-[41px] top-[44px] bottom-[52px] w-[2px] bg-border border-l-2 border-dashed border-primary/30 pointer-events-none"
-                aria-hidden="true"
-              />
-
-              {/* 1. "WHAT" Block with circular badge */}
-              <div className="relative flex items-start gap-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center flex-shrink-0 z-10 shadow-soft">
-                  <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <div className="flex-1 bg-surface-panel rounded-xl p-3 sm:p-3.5 border border-border/80 shadow-soft">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-typography-muted block mb-0.5">
-                    What
-                  </span>
-                  <p className="text-xs sm:text-sm font-semibold text-typography-heading leading-snug">
-                    {activeIssue?.what}
-                  </p>
-                </div>
+            {/* Body: One-line problem statement + expandable why/fix */}
+            <div className="p-5 space-y-4">
+              {/* Default one-line summary (max 10-12 words) */}
+              <div>
+                <p className="text-sm font-semibold text-typography-heading leading-snug">
+                  {activeIssue?.what}
+                </p>
               </div>
 
-              {/* 2. "WHY" Block with circular badge */}
-              <div className="relative flex items-start gap-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary-light text-primary border border-primary/20 flex items-center justify-center flex-shrink-0 z-10 shadow-soft">
-                  <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <div className="flex-1 bg-surface-panel rounded-xl p-3 sm:p-3.5 border border-border/80 shadow-soft">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-typography-muted block mb-0.5">
-                    Why It Matters
+              {/* Compact Expandable Why & Fix */}
+              <div className="border border-border/80 rounded-xl overflow-hidden bg-surface-panel/40">
+                <button
+                  type="button"
+                  onClick={() => setIsWhyFixExpanded(!isWhyFixExpanded)}
+                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-medium text-typography-body hover:text-typography-heading hover:bg-surface-panel transition-colors"
+                >
+                  <span className="font-semibold text-primary">
+                    {isWhyFixExpanded ? "Hide explanation & fix" : "Explanation & suggested fix"}
                   </span>
-                  <p className="text-xs sm:text-sm text-typography-body leading-relaxed">
-                    {activeIssue?.why}
-                  </p>
-                </div>
-              </div>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                      isWhyFixExpanded ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
 
-              {/* 3. "HOW" Block with circular badge */}
-              <div className="relative flex items-start gap-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-white flex items-center justify-center flex-shrink-0 z-10 shadow-elevation">
-                  <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <div className="flex-1 bg-primary-light/40 border border-primary/30 rounded-xl p-3 sm:p-3.5 shadow-soft">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1 mb-0.5">
-                    <Sparkles className="w-3 h-3" />
-                    How to Fix It
-                  </span>
-                  <p className="text-xs sm:text-sm text-typography-heading leading-relaxed font-normal">
-                    {activeIssue?.how}
-                  </p>
-                </div>
+                {isWhyFixExpanded && (
+                  <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 text-xs border-t border-border/60 bg-white">
+                    <div>
+                      <span className="font-semibold text-typography-muted block mb-0.5 text-[11px] uppercase tracking-wider">
+                        Why it matters
+                      </span>
+                      <p className="text-typography-body leading-relaxed">
+                        {activeIssue?.why}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="font-semibold text-primary block mb-0.5 text-[11px] uppercase tracking-wider">
+                        Suggested fix
+                      </span>
+                      <p className="text-typography-heading leading-relaxed font-medium">
+                        {activeIssue?.how}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Navigation Controls: Previous / Next buttons */}
-            <div className="px-5 sm:px-6 py-3.5 border-t border-border bg-white flex items-center justify-between">
-              <Button
-                variant="secondary"
-                size="sm"
+            {/* Navigation Controls: Clean Prev / Next buttons */}
+            <div className="px-5 py-3 border-t border-border bg-white flex items-center justify-between text-xs">
+              <button
+                type="button"
                 onClick={handlePrevIssue}
                 disabled={safeIndex === 0}
-                className="px-3 py-1.5"
+                className="text-typography-body hover:text-typography-heading disabled:opacity-30 disabled:cursor-not-allowed font-medium flex items-center gap-0.5"
               >
-                <ChevronLeft className="w-4 h-4 mr-0.5" />
+                <ChevronLeft className="w-3.5 h-3.5" />
                 Previous
-              </Button>
+              </button>
 
-              {/* Issue dots */}
               <div className="flex items-center gap-1.5">
                 {currentIssues.map((issue, idx) => (
                   <button
                     key={issue.id}
                     type="button"
                     onClick={() => setActiveIssueIndex(idx)}
-                    title={`Jump to issue ${idx + 1}`}
-                    className={`h-2 rounded-full transition-all ${
+                    title={`Issue ${idx + 1}: ${issue.category}`}
+                    className={`h-1.5 rounded-full transition-all ${
                       safeIndex === idx
-                        ? "w-5 bg-primary"
+                        ? "w-4 bg-primary"
                         : issue.resolved
-                        ? "w-2 bg-emerald-500"
-                        : "w-2 bg-border hover:bg-typography-muted"
+                        ? "w-1.5 bg-emerald-500"
+                        : "w-1.5 bg-border hover:bg-typography-muted"
                     }`}
                   />
                 ))}
               </div>
 
-              <Button
-                variant="secondary"
-                size="sm"
+              <button
+                type="button"
                 onClick={handleNextIssue}
                 disabled={safeIndex === currentIssues.length - 1}
-                className="px-3 py-1.5"
+                className="text-typography-body hover:text-typography-heading disabled:opacity-30 disabled:cursor-not-allowed font-medium flex items-center gap-0.5"
               >
                 Next
-                <ChevronRight className="w-4 h-4 ml-0.5" />
-              </Button>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
 
-            {/* Bottom Re-check Primary CTA */}
-            <div className="p-4 border-t border-border bg-surface-panel/60">
+            {/* Bottom Action: No sentence yapping! */}
+            <div className="p-4 border-t border-border bg-surface-panel/40">
               <Button
                 variant="primary"
                 size="md"
                 onClick={handleRecheck}
                 isLoading={isRechecking}
-                className="w-full shadow-elevation font-semibold"
+                className="w-full font-semibold"
               >
-                {isRechecking ? (
-                  "Re-evaluating draft..."
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Check my Essay
-                  </>
-                )}
+                {isRechecking ? "Checking..." : "Re-check essay"}
               </Button>
-              <p className="text-[11px] text-center text-typography-muted mt-2">
-                Re-analyzes manuscript & updates diagnostic score
-              </p>
             </div>
           </Card>
         </div>

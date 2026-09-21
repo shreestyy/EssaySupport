@@ -1,8 +1,8 @@
 /**
- * Centralized Route Map for Essay Support
+ * Centralized Route Map for Essay Refiner
  *
- * Designed for embedding as a sub-feature inside MyThorneAI's parent dashboard.
- * When mounted under a subpath (e.g. NEXT_PUBLIC_BASE_PATH=/dashboard/essay-support),
+ * Designed for embedding as a sub-feature inside MyThorneAI's Post-Secondary dashboard.
+ * When mounted under a subpath (e.g. NEXT_PUBLIC_BASE_PATH=/dashboard/essay-refiner),
  * all internal links will automatically inherit the correct prefix without breaking.
  */
 
