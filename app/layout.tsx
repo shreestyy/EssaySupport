@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { PostSecondaryTabs } from "@/components/post-secondary-tabs";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,14 +23,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       {/* 
-        Embedded into MyThorneAI dashboard content area.
-        The parent dashboard provides the left rail sidebar.
-        Post-Secondary tabs header wraps the Essay Refiner sub-feature.
+        Embedded directly into MyThorneAI dashboard Post-Secondary tab content slot.
+        The parent dashboard provides the left rail sidebar, page title ("Post-Secondary"),
+        and tab bar (College | Scholarships | Essay Refiner | Loans).
       */}
       <body className="min-h-screen font-sans bg-surface-panel/80 text-typography-body antialiased">
-        <div className="w-full max-w-5xl mx-auto pt-6 sm:pt-8 px-4 sm:px-6">
-          <PostSecondaryTabs />
-          <main className="w-full pb-12">{children}</main>
+        <div className="w-full max-w-5xl mx-auto py-6 sm:py-8 px-4 sm:px-6">
+          <main className="w-full">{children}</main>
         </div>
       </body>
     </html>
